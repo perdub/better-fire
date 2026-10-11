@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "betterfire",
+  "version": "${version}",
+  "name": "Better Fire",
+  "description": "Realistic, aggressive server-side wildfire simulation, sparks, grass burning, and burning mob trails.",
+  "authors": [
+    "Aliska"
+  ],
+  "contact": {
+    "sources": "https://github.com/aliska/better-fire"
+  },
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "dev.aliska.betterfire.BetterFireMod"
+    ]
+  },
+  "mixins": [
+    "betterfire.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21.1",
+    "java": ">=21"
+  }
+}

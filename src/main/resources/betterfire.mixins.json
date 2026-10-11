@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.aliska.betterfire.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "FireBlockMixin",
+    "MobEntityMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
