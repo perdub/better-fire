@@ -32,6 +32,11 @@ public class BetterFireConfig {
     public int sparkRangeVertical = 4;
     public int maxSparksPerFireTick = 2;
 
+    // Лимиты и оптимизация искр на серверном тике
+    public int maxSparksPerWorldTick = 25; // Максимальное число искр за 1 игровой тик на мир
+    public int maxFiresPerChunk = 64;      // Лимит блоков огня в одном чанке для защиты от лагов
+    public boolean limitSparksInDenseFire = true; // Если вокруг уже сплошной огонь, не спавнить лишние искры
+
     // Огненный след от горящих мобов
     public boolean mobFireTrail = true;
     public double mobTrailIgniteChance = 0.25;

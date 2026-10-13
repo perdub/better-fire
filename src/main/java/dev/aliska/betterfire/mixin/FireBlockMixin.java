@@ -11,6 +11,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -25,10 +26,14 @@ public abstract class FireBlockMixin {
     @Shadow
     protected abstract int getBurnChance(BlockState state);
 
+    // Счетчик искр за текущий серверный тик для предотвращения лагов и спама
+    @Unique
+    private static long lastWorldTime = -1;
+    @Unique
+    private static int sparksGeneratedThisTick = 0;
+
     /**
      * Ускоряем шедулинг тиков огня при добавлении и при тиках.
-     * Ванилла: 30 + random.nextInt(10).
-     * С модом: конфигурируемо (по умолчанию 6 + random.nextInt(6)) — огонь распространяется в ~4-5 раз быстрее.
      */
     @ModifyArg(
         method = "scheduledTick",
@@ -53,7 +58,7 @@ public abstract class FireBlockMixin {
     }
 
     /**
-     * Дополнительная агрессивная логика распространения, искр (embers) и сгорания дёрна.
+     * Оптимизированная логика искр и сгорания дёрна.
      */
     @Inject(method = "scheduledTick", at = @At("TAIL"))
     private void onFireTickExtra(BlockState state, ServerWorld world, BlockPos pos, Random random, CallbackInfo ci) {
@@ -63,7 +68,7 @@ public abstract class FireBlockMixin {
 
         BetterFireConfig config = BetterFireConfig.get();
 
-        // 1. Сгорание дёрна в землю/бесплодную землю (выжженная земля)
+        // 1. Сгорание дёрна в каменистую землю (выжженная земля)
         if (config.grassBlocksCatchFire) {
             BlockPos downPos = pos.down();
             BlockState downState = world.getBlockState(downPos);
@@ -74,62 +79,88 @@ public abstract class FireBlockMixin {
             }
         }
 
-        // 2. Механика искр (Embers/Sparks), перелетающих через воздух и поджигающих постройки и лес
+        // 2. Механика искр с глобальным лимитом за тик и оптимизацией плотности огня
         if (config.enableSparks && random.nextDouble() < config.sparkChancePerTick) {
-            spawnAndSpreadSparks(world, pos, random, config);
+            long currentTime = world.getTime();
+            if (currentTime != lastWorldTime) {
+                lastWorldTime = currentTime;
+                sparksGeneratedThisTick = 0;
+            }
+
+            if (sparksGeneratedThisTick < config.maxSparksPerWorldTick) {
+                // Если вокруг вплотную уже сплошной огонь (в центре очага), искры не вылетают, экономя ресурсы
+                if (config.limitSparksInDenseFire && isSurroundedByFire(world, pos)) {
+                    return;
+                }
+                spawnAndSpreadSparks(world, pos, random, config);
+            }
         }
     }
 
+    @Unique
+    private boolean isSurroundedByFire(ServerWorld world, BlockPos pos) {
+        int neighborFireCount = 0;
+        if (world.getBlockState(pos.north()).isOf(Blocks.FIRE)) neighborFireCount++;
+        if (world.getBlockState(pos.south()).isOf(Blocks.FIRE)) neighborFireCount++;
+        if (world.getBlockState(pos.west()).isOf(Blocks.FIRE)) neighborFireCount++;
+        if (world.getBlockState(pos.east()).isOf(Blocks.FIRE)) neighborFireCount++;
+        return neighborFireCount >= 3;
+    }
+
+    @Unique
     private void spawnAndSpreadSparks(ServerWorld world, BlockPos sourcePos, Random random, BetterFireConfig config) {
         int sparkCount = 1 + random.nextInt(config.maxSparksPerFireTick);
         int hRange = config.sparkRangeHorizontal;
         int vRange = config.sparkRangeVertical;
 
         for (int i = 0; i < sparkCount; i++) {
+            if (sparksGeneratedThisTick >= config.maxSparksPerWorldTick) {
+                break;
+            }
+
             int dx = random.nextInt(hRange * 2 + 1) - hRange;
             int dz = random.nextInt(hRange * 2 + 1) - hRange;
-            int dy = random.nextInt(vRange * 2 + 1) - (vRange / 2); // искры поднимаются выше горячим воздухом
+            int dy = random.nextInt(vRange * 2 + 1) - (vRange / 2);
 
-            // Не поджигаем в той же точке
             if (dx == 0 && dz == 0) continue;
 
             BlockPos targetAirPos = sourcePos.add(dx, dy, dz);
 
-            // Визуальные эффекты искр (Server-side частицы отправляются всем игрокам вокруг)
+            // Оптимизация: проверяем загружен ли чанк перед любыми операциями с блоками
+            if (!world.isChunkLoaded(targetAirPos.getX() >> 4, targetAirPos.getZ() >> 4)) {
+                continue;
+            }
+
+            sparksGeneratedThisTick++;
+
+            // Визуальные эффекты искр
             double sparkMidX = sourcePos.getX() + 0.5 + dx * 0.5;
             double sparkMidY = sourcePos.getY() + 1.0 + dy * 0.5;
             double sparkMidZ = sourcePos.getZ() + 0.5 + dz * 0.5;
             world.spawnParticles(ParticleTypes.LAVA, sparkMidX, sparkMidY, sparkMidZ, 1, 0.2, 0.2, 0.2, 0.02);
-            world.spawnParticles(ParticleTypes.FLAME, sparkMidX, sparkMidY, sparkMidZ, 2, 0.3, 0.3, 0.3, 0.05);
+            world.spawnParticles(ParticleTypes.FLAME, sparkMidX, sparkMidY, sparkMidZ, 1, 0.2, 0.2, 0.2, 0.04);
 
-            // Проверяем, можно ли зажечь огонь в целевой точке
+            // Проверяем возможность возгорания в воздухе
             if (world.isAir(targetAirPos) && !world.hasRain(targetAirPos)) {
-                // Огонь может загореться, если рядом есть горючий блок или блок снизу горючий
                 if (canIgniteAt(world, targetAirPos)) {
-                    // Ставим огонь с начальным возрастом
                     BlockState fireState = Blocks.FIRE.getDefaultState();
                     world.setBlockState(targetAirPos, fireState, 3);
-                    world.spawnParticles(ParticleTypes.FLAME, targetAirPos.getX() + 0.5, targetAirPos.getY() + 0.5, targetAirPos.getZ() + 0.5, 5, 0.2, 0.2, 0.2, 0.02);
+                    world.spawnParticles(ParticleTypes.FLAME, targetAirPos.getX() + 0.5, targetAirPos.getY() + 0.5, targetAirPos.getZ() + 0.5, 3, 0.2, 0.2, 0.2, 0.02);
                 }
             }
         }
     }
 
-    /**
-     * Проверка, может ли огонь загореться в целевом воздухе (проверяем соседей).
-     * Учитываем противопожарные барьеры: пашня (Farmland), тропинки (Dirt Path), камень, вода НЕ дают искре разгореться.
-     */
+    @Unique
     private boolean canIgniteAt(ServerWorld world, BlockPos airPos) {
         BlockPos downPos = airPos.down();
         BlockState downState = world.getBlockState(downPos);
 
-        // Если снизу противопожарная полоса (вспаханная земля, тропинка, камень, вода)
+        // Противопожарные полосы (пашня, тропинки, вода) защищают от возгорания
         if (downState.isOf(Blocks.FARMLAND) || downState.isOf(Blocks.DIRT_PATH) || downState.isOf(Blocks.WATER)) {
-            // Если снизу защитная полоса, проверяем нет ли прямо вокруг других горючих блоков (деревянные стены и т.д.)
-            return hasAdjacentFlammable(world, airPos);
+            return false;
         }
 
-        // Если снизу полнотелый блок и рядом есть что-то горючее или сам блок снизу горючий
         if (isFlammable(downState)) {
             return true;
         }
@@ -137,6 +168,7 @@ public abstract class FireBlockMixin {
         return hasAdjacentFlammable(world, airPos);
     }
 
+    @Unique
     private boolean hasAdjacentFlammable(ServerWorld world, BlockPos pos) {
         for (Direction direction : Direction.values()) {
             BlockPos neighborPos = pos.offset(direction);
