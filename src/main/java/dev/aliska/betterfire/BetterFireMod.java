@@ -1,7 +1,9 @@
 package dev.aliska.betterfire;
 
+import dev.aliska.betterfire.command.ExtinguishCommand;
 import dev.aliska.betterfire.config.BetterFireConfig;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.FireBlock;
 import org.slf4j.Logger;
@@ -15,6 +17,11 @@ public class BetterFireMod implements ModInitializer {
     public void onInitialize() {
         LOGGER.info("[BetterFire] Initializing server-side realistic wildfire mod...");
         BetterFireConfig.load();
+
+        // Регистрируем команды /extinguish
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
+            ExtinguishCommand.register(dispatcher);
+        });
 
         // Регистрируем горючесть дёрна/травы, если включено в конфиге
         if (BetterFireConfig.get().grassBlocksCatchFire) {

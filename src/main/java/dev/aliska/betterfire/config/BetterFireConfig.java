@@ -14,27 +14,28 @@ public class BetterFireConfig {
     private static final File CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("betterfire.json").toFile();
 
     // Скорость и частота тиков огня (в ванилле 30 + rand(10))
-    public int fireTickMinDelay = 6;
-    public int fireTickRandomDelay = 6;
+    // Было 6 + 6 (очень бешено), теперь сбалансировано: 12 + 10 (~ в 2 раза быстрее ваниллы вместо 5)
+    public int fireTickMinDelay = 12;
+    public int fireTickRandomDelay = 10;
 
     // Множитель попыток распространения за тик
-    public int extraSpreadAttempts = 3;
+    public int extraSpreadAttempts = 2;
 
     // Сгорание дерна (Grass Block -> Coarse Dirt / Dirt)
     public boolean grassBlocksCatchFire = true;
-    public double grassBlockBurnToDirtChance = 0.35;
+    public double grassBlockBurnToDirtChance = 0.25;
 
     // Разлёт искр (ember/sparks)
     public boolean enableSparks = true;
-    public double sparkChancePerTick = 0.25;
-    public int sparkRangeHorizontal = 12;
-    public int sparkRangeVertical = 6;
-    public int maxSparksPerFireTick = 3;
+    public double sparkChancePerTick = 0.12;
+    public int sparkRangeHorizontal = 8;
+    public int sparkRangeVertical = 4;
+    public int maxSparksPerFireTick = 2;
 
     // Огненный след от горящих мобов
     public boolean mobFireTrail = true;
-    public double mobTrailIgniteChance = 0.40;
-    public int mobTrailIntervalTicks = 10;
+    public double mobTrailIgniteChance = 0.25;
+    public int mobTrailIntervalTicks = 15;
 
     // Защитные полосы (Firebreaks): земля, вспаханная земля (Farmland), тропинки (Dirt Path) не горят
     public boolean farmlandImmune = true;

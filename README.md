@@ -30,25 +30,36 @@
 
 ---
 
+## 🚒 Команды тушения (In-Game / Console)
+
+Мод добавляет удобную команду для экстренной борьбы с огнем:
+- `/extinguish` — тушит весь огонь и горящих мобов в радиусе 50 блоков вокруг игрока/источника.
+- `/extinguish <радиус>` — тушит огонь в указанном радиусе (например, `/extinguish 150`).
+- `/extinguish <радиус> <x y z>` — тушит огонь в указанных координатах с радиусом.
+- `/extinguish all` — тушит **весь** огонь во всех загруженных чанках мира и спасает горящих мобов.
+- `/extinguish reload` — мгновенно перезагружает настройки из `config/betterfire.json` без рестарта сервера.
+
+---
+
 ## ⚙ Конфигурация (`config/betterfire.json`)
 
 Мод автоматически создаёт конфигурационный файл:
 
 ```json
 {
-  "fireTickMinDelay": 6,
-  "fireTickRandomDelay": 6,
-  "extraSpreadAttempts": 3,
+  "fireTickMinDelay": 12,
+  "fireTickRandomDelay": 10,
+  "extraSpreadAttempts": 2,
   "grassBlocksCatchFire": true,
-  "grassBlockBurnToDirtChance": 0.35,
+  "grassBlockBurnToDirtChance": 0.25,
   "enableSparks": true,
-  "sparkChancePerTick": 0.25,
-  "sparkRangeHorizontal": 12,
-  "sparkRangeVertical": 6,
-  "maxSparksPerFireTick": 3,
+  "sparkChancePerTick": 0.12,
+  "sparkRangeHorizontal": 8,
+  "sparkRangeVertical": 4,
+  "maxSparksPerFireTick": 2,
   "mobFireTrail": true,
-  "mobTrailIgniteChance": 0.4,
-  "mobTrailIntervalTicks": 10,
+  "mobTrailIgniteChance": 0.25,
+  "mobTrailIntervalTicks": 15,
   "farmlandImmune": true,
   "dirtPathImmune": true
 }
